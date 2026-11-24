@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>n³ vs n! · 双队竞速</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg: #05070c;
+    --ink: #f4f8ff;
+    --muted: #7f8ba0;
+    --line: rgba(255, 255, 255, .085);
+    --left: #67e8f9;
+    --left-rgb: 103, 232, 249;
+    --right: #fbbf24;
+    --right-rgb: 251, 191, 36;
+    --mono: "SFMono-Regular", "JetBrains Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+    --sans: "Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{ margin: 0; min-height: 100%; }
+
+  body{
+    background:
+      radial-gradient(1000px 680px at 8% -8%, rgba(56, 189, 248, .13), transparent 58%),
+      radial-gradient(1040px 700px at 94% 5%, rgba(251, 191, 36, .11), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, rgba(99, 102, 241, .08), transparent 60%),
+      linear-gradient(150deg, #080b13 0%, #05070c 50%, #07090f 100%);
+    color: var(--ink);
+    font-family: var(--sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body.result-open{ overflow: hidden; }
+
+  body::before{
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .28;
+    background-image: radial-gradient(rgba(255, 255, 255, .06) .55px, transparent .55px);
+    background-size: 4px 4px;
+    mask-image: linear-gradient(to bottom, #000, transparent 72%);
+  }
+
+  .app{
+    position: relative;
+    width: min(1580px, 100%);
+    height: 100svh;
+    margin: 0 auto;
+    padding: 23px clamp(18px, 2.8vw, 44px) 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+  }
+
+  /* ---------------- Header ---------------- */
+
+  .topbar{
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 26px;
+  }
+
+  .eyebrow{
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #9aa7ba;
+    font: 500 9.5px/1 var(--mono);
+    letter-spacing: .19em;
+    text-transform: uppercase;
+  }
+
+  .eyebrow-dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--left);
+    box-shadow: 0 0 12px rgba(var(--left-rgb), .9);
+    animation: breathe 1.8s ease-in-out infinite;
+  }
+
+  h1{
+    margin: 9px 0 7px;
+    font-size: clamp(31px, 3.15vw, 48px);
+    line-height: .95;
+    letter-spacing: -.05em;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  h1 .accent-left{
+    color: transparent;
+    background: linear-gradient(100deg, #effdff 8%, #67e8f9 75%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: 0 0 32px rgba(var(--left-rgb), .2);
+  }
+
+  h1 .accent-right{
+    color: transparent;
+    background: linear-gradient(100deg, #fff9e8 8%, #fbbf24 75%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: 0 0 32px rgba(var(--right-rgb), .2);
+  }
+
+  h1 .vs-word{
+    margin: 0 .08em;
+    color: #536074;
+    font: 500 .42em/1 var(--mono);
+    letter-spacing: .1em;
+    vertical-align: .35em;
+    text-shadow: none;
+  }
+
+  .subtitle{
+    margin: 0;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    letter-spacing: .01em;
+  }
+
+  .subtitle .left-rule{ color: #a5f3fc; }
+  .subtitle .right-rule{ color: #fde68a; }
+
+  .race-controls{
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding-bottom: 2px;
+  }
+
+  .race-state{
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .025);
+    color: #9aa8ba;
+    font: 500 8.5px/1 var(--mono);
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+  }
+
+  .race-state .state-dot{
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #6ee7b7;
+    box-shadow: 0 0 9px rgba(110, 231, 183, .9);
+    animation: breathe 1.7s ease-in-out infinite;
+  }
+
+  .race-state.is-paused .state-dot{
+    background: #fbbf24;
+    box-shadow: 0 0 9px rgba(251, 191, 36, .65);
+    animation-play-state: paused;
+  }
+
+  .race-state.is-finished .state-dot{
+    background: #a7f3d0;
+    box-shadow: 0 0 9px rgba(167, 243, 208, .8);
+    animation-play-state: paused;
+  }
+
+  .race-clock{
+    min-width: 92px;
+    text-align: right;
+  }
+
+  .race-clock span{
+    display: block;
+    margin-bottom: 5px;
+    color: #68768a;
+    font: 500 7.8px/1 var(--mono);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .race-clock strong{
+    color: #f0fbff;
+    font: 500 19px/1 var(--mono);
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 18px rgba(var(--left-rgb), .18);
+  }
+
+  .icon-btn{
+    display: grid;
+    place-items: center;
+    width: 39px;
+    height: 39px;
+    padding: 0;
+    border: 1px solid rgba(var(--left-rgb), .26);
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba(var(--left-rgb), .15), rgba(var(--left-rgb), .045));
+    color: #e3fcff;
+    cursor: pointer;
+    transition: transform .18s ease, background .18s ease, border-color .18s ease;
+  }
+
+  .icon-btn:hover{
+    transform: scale(1.045);
+    border-color: rgba(var(--left-rgb), .6);
+    background: linear-gradient(145deg, rgba(var(--left-rgb), .26), rgba(var(--left-rgb), .08));
+  }
+
+  .icon-btn svg{ width: 14px; height: 14px; }
+
+  .icon-btn .icon-play{ display: none; }
+  .icon-btn.is-paused .icon-pause{ display: none; }
+  .icon-btn.is-paused .icon-play{ display: block; margin-left: 1px; }
+
+  .reset-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .025);
+    color: #8d99ab;
+    font: 550 9px/1 var(--mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color .16s ease, border-color .16s ease, background .16s ease;
+  }
+
+  .reset-btn:hover{
+    color: #eef8ff;
+    border-color: rgba(255, 255, 255, .18);
+    background: rgba(255, 255, 255, .055);
+  }
+
+  .reset-btn svg{ width: 12px; height: 12px; }
+
+  /* ---------------- Race ---------------- */
+
+  .race{
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 17px;
+  }
+
+  .team{
+    --accent: var(--left);
+    --accent-rgb: var(--left-rgb);
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 24px;
+    background:
+      radial-gradient(520px 220px at 14% -8%, rgba(var(--accent-rgb), .09), transparent 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, .007));
+    overflow: hidden;
+    box-shadow:
+      0 28px 80px rgba(0, 0, 0, .38),
+      inset 0 1px 0 rgba(255, 255, 255, .055);
+    transition: border-color .5s ease, box-shadow .5s ease;
+  }
+
+  .team::after{
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 42%, transparent 45%, rgba(0, 0, 0, .2) 100%);
+  }
+
+  .team-right{
+    --accent: var(--right);
+    --accent-rgb: var(--right-rgb);
+    background:
+      radial-gradient(520px 220px at 86% -8%, rgba(var(--accent-rgb), .10), transparent 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, .007));
+  }
+
+  .team.winner{
+    border-color: rgba(var(--accent-rgb), .58);
+    box-shadow:
+      0 0 0 1px rgba(var(--accent-rgb), .16),
+      0 0 52px rgba(var(--accent-rgb), .13),
+      0 30px 90px rgba(0, 0, 0, .4),
+      inset 0 1px 0 rgba(255, 255, 255, .09);
+  }
+
+  .team-head{
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 10px;
+  }
+
+  .team-id{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .team-letter{
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 31px;
+    height: 31px;
+    border: 1px solid rgba(var(--accent-rgb), .35);
+    border-radius: 10px;
+    background: rgba(var(--accent-rgb), .075);
+    color: var(--accent);
+    font: 600 12px/1 var(--mono);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+  }
+
+  .team-id h2{
+    margin: 0;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .team-id h2 span{
+    margin-left: 5px;
+    color: var(--accent);
+    font: 500 8px/1 var(--mono);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+  }
+
+  .team-id p{
+    margin: 5px 0 0;
+    color: #728095;
+    font: 500 9px/1 var(--mono);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+
+  .team-id p b{
+    color: #d8ecf9;
+    font-weight: 500;
+  }
+
+  .n-chip{
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 58px;
+    padding: 7px 10px 6px;
+    border: 1px solid rgba(var(--accent-rgb), .22);
+    border-radius: 10px;
+    background: rgba(var(--accent-rgb), .045);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055);
+  }
+
+  .n-chip span{
+    color: #8592a5;
+    font: 500 9px/1 var(--mono);
+    letter-spacing: .03em;
+  }
+
+  .n-chip strong{
+    color: var(--accent);
+    font: 600 20px/1 var(--mono);
+    letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 15px rgba(var(--accent-rgb), .32);
+  }
+
+  .team-stats{
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1.22fr .78fr 1.12fr .8fr;
+    margin: 0 16px 10px;
+    padding: 8px 0 9px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .team-stat{
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .team-stat:first-child{ padding-left: 0; }
+  .team-stat + .team-stat{ border-left: 1px solid rgba(255, 255, 255, .06); }
+
+  .team-stat .label{
+    display: block;
+    margin-bottom: 5px;
+    overflow: hidden;
+    color: #6d7b90;
+    font: 500 8px/1 var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .team-stat strong{
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    color: #edf8ff;
+    font: 550 clamp(13px, 1.28vw, 18px)/1 var(--mono);
+    letter-spacing: -.035em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .team-stat.key strong{
+    color: var(--accent);
+    text-shadow: 0 0 17px rgba(var(--accent-rgb), .24);
+  }
+
+  .team-stat strong small{
+    color: #617084;
+    font-size: .52em;
+    letter-spacing: 0;
+  }
+
+  .team-stat .equation{
+    display: block;
+    margin-top: 5px;
+    overflow: hidden;
+    color: rgba(var(--accent-rgb), .68);
+    font: 500 8px/1 var(--mono);
+    letter-spacing: .02em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .team-stat-value.bump,
+  .n-chip strong.bump{
+    animation: valueBump .52s cubic-bezier(.2, .8, .2, 1);
+  }
+
+  @keyframes valueBump{
+    0%{ transform: scale(1); filter: none; }
+    36%{ transform: scale(1.18); filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), .8)); }
+    100%{ transform: scale(1); filter: none; }
+  }
+
+  .arena{
+    position: relative;
+    z-index: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 10px 10px;
+    border: 1px solid rgba(var(--accent-rgb), .11);
+    border-radius: 17px;
+    background: #05080f;
+    overflow: hidden;
+  }
+
+  .arena canvas{
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .finish-badge{
+    position: absolute;
+    z-index: 5;
+    top: 12px;
+    right: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(var(--accent-rgb), .28);
+    border-radius: 99px;
+    background: rgba(4, 9, 14, .78);
+    color: #dffbff;
+    font: 600 8.5px/1 var(--mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: opacity .4s ease, transform .4s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .team.finished .finish-badge{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .team.winner .finish-badge{
+    border-color: rgba(var(--accent-rgb), .55);
+    background: rgba(var(--accent-rgb), .16);
+    color: #fff8dc;
+    box-shadow: 0 0 24px rgba(var(--accent-rgb), .16);
+  }
+
+  .finish-badge .badge-star{
+    color: var(--accent);
+    font-size: 10px;
+  }
+
+  .vs-mark{
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 50%;
+    background: #080c13;
+    color: #8795a8;
+    font: 500 9px/1 var(--mono);
+    letter-spacing: .04em;
+    transform: translate(-50%, -50%);
+    box-shadow:
+      0 0 0 5px rgba(5, 8, 13, .94),
+      0 12px 30px rgba(0, 0, 0, .38);
+    pointer-events: none;
+  }
+
+  /* ---------------- Result ---------------- */
+
+  .result{
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 22px;
+    background:
+      radial-gradient(circle at 50% 45%, rgba(16, 30, 38, .24), rgba(4, 7, 12, .78) 70%),
+      rgba(4, 7, 12, .3);
+    backdrop-filter: blur(9px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .55s ease;
+  }
+
+  .result.show{
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .result-card{
+    --win-accent: var(--right);
+    --win-rgb: var(--right-rgb);
+    width: min(650px, 94%);
+    padding: 27px 28px 25px;
+    border: 1px solid rgba(var(--win-rgb), .28);
+    border-radius: 24px;
+    background:
+      radial-gradient(520px 240px at 50% -25%, rgba(var(--win-rgb), .10), transparent 65%),
+      linear-gradient(145deg, rgba(20, 29, 38, .74), rgba(8, 12, 19, .91));
+    box-shadow:
+      0 38px 110px rgba(0, 0, 0, .62),
+      0 0 70px rgba(var(--win-rgb), .06),
+      inset 0 1px 0 rgba(255, 255, 255, .11);
+    text-align: center;
+    transform: translateY(14px) scale(.98);
+    transition: transform .55s cubic-bezier(.2, .8, .2, 1);
+  }
+
+  .result.show .result-card{ transform: translateY(0) scale(1); }
+
+  .result-card.winner-left{
+    --win-accent: var(--left);
+    --win-rgb: var(--left-rgb);
+  }
+
+  .result-card.winner-right{
+    --win-accent: var(--right);
+    --win-rgb: var(--right-rgb);
+  }
+
+  .result-eyebrow{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #92a0b2;
+    font: 500 8.5px/1 var(--mono);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  .result-eyebrow .dot{
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--win-accent);
+    box-shadow: 0 0 10px rgba(var(--win-rgb), .8);
+  }
+
+  .result-card h2{
+    margin: 14px 0 7px;
+    font-size: clamp(29px, 3.1vw, 40px);
+    line-height: 1;
+    letter-spacing: -.05em;
+    font-weight: 620;
+  }
+
+  .result-card h2 span{
+    color: transparent;
+    background: linear-gradient(100deg, #f4feff 10%, var(--win-accent) 85%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .result-card h2 em{
+    margin-left: .14em;
+    color: #d5dce7;
+    font-style: normal;
+    font-weight: 520;
+  }
+
+  .result-card > p{
+    margin: 0;
+    color: #8290a3;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+
+  .result-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 21px 0 22px;
+    text-align: left;
+  }
+
+  .result-team{
+    padding: 13px 14px 12px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .018);
+  }
+
+  .result-team.is-winner{
+    border-color: rgba(var(--win-rgb), .34);
+    background: rgba(var(--win-rgb), .045);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  }
+
+  .result-team-head{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .result-letter{
+    display: grid;
+    place-items: center;
+    width: 23px;
+    height: 23px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: #b9c6d6;
+    font: 600 9px/1 var(--mono);
+  }
+
+  .result-team.is-winner .result-letter{
+    border-color: rgba(var(--win-rgb), .35);
+    color: var(--win-accent);
+    background: rgba(var(--win-rgb), .075);
+  }
+
+  .result-team-head h3{
+    margin: 0;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 580;
+  }
+
+  .result-team-head small{
+    display: block;
+    margin-top: 4px;
+    color: #6e7c90;
+    font: 500 7.5px/1 var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .win-tag{
+    margin-left: auto;
+    color: var(--win-accent);
+    font: 600 7.5px/1 var(--mono);
+    letter-spacing: .13em;
+    opacity: 0;
+  }
+
+  .result-team.is-winner .win-tag{ opacity: 1; }
+
+  .result-rows{
+    display: grid;
+    gap: 7px;
+  }
+
+  .result-row{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .result-row span{
+    color: #6f7d91;
+    font: 500 8px/1 var(--mono);
+    letter-spacing: .05em;
+  }
+
+  .result-row b{
+    color: #dbe8f4;
+    font: 550 11px/1 var(--mono);
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .result-team.is-winner .result-row b{ color: #f8feff; }
+
+  .result-actions{
+    display: flex;
+    justify-content: center;
+  }
+
+  .again-btn{
+    height: 39px;
+    padding: 0 23px;
+    border: 1px solid rgba(var(--win-rgb), .34);
+    border-radius: 99px;
+    background: linear-gradient(135deg, rgba(var(--win-rgb), .18), rgba(var(--win-rgb), .06));
+    color: #effdff;
+    font: 550 9.5px/1 var(--mono);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform .18s ease, background .18s ease, border-color .18s ease;
+  }
+
+  .again-btn:hover{
+    transform: translateY(-1px);
+    border-color: rgba(var(--win-rgb), .68);
+    background: linear-gradient(135deg, rgba(var(--win-rgb), .28), rgba(var(--win-rgb), .09));
+  }
+
+  @keyframes breathe{
+    0%, 100%{ opacity: .55; transform: scale(.82); }
+    50%{ opacity: 1; transform: scale(1); }
+  }
+
+  /* ---------------- Responsive ---------------- */
+
+  @media (max-width: 900px){
+    body{ overflow: auto; }
+    .app{ height: auto; min-height: 100svh; }
+    h1{ white-space: normal; }
+  }
+
+  @media (max-width: 780px){
+    .topbar{ flex-direction: column; align-items: stretch; gap: 14px; }
+    .race-controls{ justify-content: flex-start; flex-wrap: wrap; }
+    .race{ grid-template-columns: 1fr; gap: 14px; }
+    .team{ min-height: 620px; }
+    .vs-mark{ display: none; }
+    .result-grid{ grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 540px){
+    .app{ padding: 15px 12px 18px; gap: 13px; }
+    h1{ font-size: clamp(29px, 9vw, 40px); }
+    .subtitle{ font-size: 11.5px; }
+    .race-controls{ gap: 9px; }
+    .race-state{ display: none; }
+    .race-clock{ margin-right: auto; text-align: left; }
+    .race-clock strong{ font-size: 17px; }
+    .team{ min-height: 570px; border-radius: 20px; }
+    .team-head{ padding: 12px 12px 8px; }
+    .team-id h2{ font-size: 14px; }
+    .team-id p{ font-size: 8px; }
+    .team-stats{ margin: 0 12px 8px; grid-template-columns: 1.25fr .7fr 1.1fr .75fr; }
+    .team-stat{ padding: 0 7px; }
+    .team-stat .label{ font-size: 7.4px; letter-spacing: .05em; }
+    .team-stat strong{ font-size: 13px; }
+    .team-stat .equation{ font-size: 7.2px; }
+    .n-chip{ min-width: 50px; padding: 6px 8px; }
+    .n-chip strong{ font-size: 18px; }
+    .arena{ margin: 0 7px 7px; }
+    .result-card{ padding: 23px 18px 21px; }
+    .finish-badge{ top: 8px; right: 8px; }
+  }
+
+  @media (max-height: 720px) and (min-width: 781px){
+    .app{ padding-top: 16px; padding-bottom: 17px; gap: 12px; }
+    h1{ font-size: 33px; margin: 6px 0 5px; }
+    .subtitle{ font-size: 10.5px; }
+    .race-controls{ gap: 10px; }
+    .race-clock strong{ font-size: 17px; }
+    .team-head{ padding: 11px 14px 7px; }
+    .team-stats{ margin: 0 14px 8px; padding: 6px 0 7px; }
+    .team-stat .label{ margin-bottom: 4px; }
+    .team-stat .equation{ margin-top: 4px; }
+    .arena{ margin: 0 8px 8px; }
+    .result-card{ padding: 22px 25px 21px; }
+    .result-grid{ margin: 16px 0 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="intro">
+      <div class="eyebrow"><span class="eyebrow-dot"></span> KINETIC LAB <span style="opacity:.35">/</span> FACTORIAL DERBY</div>
+      <h1><span class="accent-left">n³</span><span class="vs-word">vs</span><span class="accent-right">n!</span></h1>
+      <p class="subtitle"><span class="left-rule">左队</span>：球数按 n³ 裂变 · <span class="right-rule">右队</span>：固定 1 球，质量按 n! 增长 · n = 已击穿层数 + 1 · 每秒触底一次 · 先清空七层者获胜</p>
+    </div>
+
+    <div class="race-controls">
+      <div class="race-state" id="raceState"><span class="state-dot"></span><span id="raceStateText">LIVE</span></div>
+      <div class="race-clock">
+        <span>Race Time</span>
+        <strong id="raceClock">00:00.0</strong>
+      </div>
+      <button class="icon-btn" id="pauseBtn" aria-label="暂停">
+        <svg class="icon-pause" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="5.3" y="4" width="3.1" height="12" rx="1.1" fill="currentColor"/>
+          <rect x="11.6" y="4" width="3.1" height="12" rx="1.1" fill="currentColor"/>
+        </svg>
+        <svg class="icon-play" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M6.4 4.4c0-.9 1-1.4 1.7-.9l7 5.6c.6.5.6 1.3 0 1.8l-7 5.6c-.7.5-1.7 0-1.7-.9V4.4Z" fill="currentColor"/>
+        </svg>
+      </button>
+      <button class="reset-btn" id="resetBtn">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M13.5 7.2a5.5 5.5 0 1 1-1.7-3.8" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+          <path d="M13.7 2.6v4.5H9.2" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Reset</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="race" id="race">
+    <section class="team team-left" id="teamLeft">
+      <div class="team-head">
+        <div class="team-id">
+          <span class="team-letter">A</span>
+          <div>
+            <h2>左队 <span>数量裂变</span></h2>
+            <p>每次击穿后 · 球数变为 <b>n³</b></p>
+          </div>
+        </div>
+        <div class="n-chip"><span>n =</span><strong id="leftN">1</strong></div>
+      </div>
+      <div class="team-stats">
+        <div class="team-stat key">
+          <span class="label">当前球数</span>
+          <strong class="team-stat-value" id="leftValue">1</strong>
+          <span class="equation" id="leftEquation">n³ = 1</span>
+        </div>
+        <div class="team-stat">
+          <span class="label">弹跳</span>
+          <strong class="team-stat-value" id="leftHits">0</strong>
+        </div>
+        <div class="team-stat">
+          <span class="label">剩余</span>
+          <strong class="team-stat-value" id="leftRemaining">14,410</strong>
+        </div>
+        <div class="team-stat">
+          <span class="label">层数</span>
+          <strong><span id="leftLevel">01</span><small>/07</small></strong>
+        </div>
+      </div>
+      <div class="arena">
+        <canvas id="leftCanvas" aria-label="左队：球数按 n 的三次方增长"></canvas>
+        <div class="finish-badge" id="leftFinish"><span class="badge-star">✦</span><span id="leftFinishText">FINISHED</span></div>
+      </div>
+    </section>
+
+    <section class="team team-right" id="teamRight">
+      <div class="team-head">
+        <div class="team-id">
+          <span class="team-letter">B</span>
+          <div>
+            <h2>右队 <span>质量增长</span></h2>
+            <p>固定 <b>1</b> 球 · 质量变为 <b>n!</b></p>
+          </div>
+        </div>
+        <div class="n-chip"><span>n =</span><strong id="rightN">1</strong></div>
+      </div>
+      <div class="team-stats">
+        <div class="team-stat key">
+          <span class="label">当前质量</span>
+          <strong class="team-stat-value" id="rightValue">1</strong>
+          <span class="equation" id="rightEquation">n! = 1</span>
+        </div>
+        <div class="team-stat">
+          <span class="label">弹跳</span>
+          <strong class="team-stat-value" id="rightHits">0</strong>
+        </div>
+        <div class="team-stat">
+          <span class="label">剩余</span>
+          <strong class="team-stat-value" id="rightRemaining">14,410</strong>
+        </div>
+        <div class="team-stat">
+          <span class="label">层数</span>
+          <strong><span id="rightLevel">01</span><small>/07</small></strong>
+        </div>
+      </div>
+      <div class="arena">
+        <canvas id="rightCanvas" aria-label="右队：固定一颗球，质量按 n 的阶乘增长"></canvas>
+        <div class="finish-badge" id="rightFinish"><span class="badge-star">✦</span><span id="rightFinishText">FINISHED</span></div>
+      </div>
+    </section>
+
+    <div class="vs-mark" aria-hidden="true">VS</div>
+
+    <div class="result" id="result" aria-hidden="true">
+      <div class="result-card" id="resultCard">
+        <div class="result-eyebrow"><span class="dot"></span> RACE COMPLETE</div>
+        <h2><span id="winnerName">右队</span><em>胜出</em></h2>
+        <p id="resultSub">率先击穿全部七层平台</p>
+
+        <div class="result-grid">
+          <div class="result-team" id="resultLeft">
+            <div class="result-team-head">
+              <span class="result-letter">A</span>
+              <div><h3>左队</h3><small>数量裂变</small></div>
+              <span class="win-tag">WINNER</span>
+            </div>
+            <div class="result-rows">
+              <div class="result-row"><span>用时</span><b id="resultLeftTime">00:00.0</b></div>
+              <div class="result-row"><span>触底</span><b id="resultLeftHits">0</b></div>
+              <div class="result-row"><span>最终 n</span><b id="resultLeftN">0</b></div>
+              <div class="result-row"><span>最终球数</span><b id="resultLeftFinal">0</b></div>
+            </div>
+          </div>
+
+          <div class="result-team" id="resultRight">
+            <div class="result-team-head">
+              <span class="result-letter">B</span>
+              <div><h3>右队</h3><small>质量增长</small></div>
+              <span class="win-tag">WINNER</span>
+            </div>
+            <div class="result-rows">
+              <div class="result-row"><span>用时</span><b id="resultRightTime">00:00.0</b></div>
+              <div class="result-row"><span>触底</span><b id="resultRightHits">0</b></div>
+              <div class="result-row"><span>最终 n</span><b id="resultRightN">0</b></div>
+              <div class="result-row"><span>最终质量</span><b id="resultRightFinal">0</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="again-btn" id="againBtn">再赛一场</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const INITIAL_VALUES = [10, 40, 60, 300, 1000, 3000, 10000];
+  const LEVEL_COLORS = ["#7dd3fc", "#67e8f9", "#5eead4", "#bef264", "#fbbf24", "#fb923c", "#fb7185"];
+  const N = INITIAL_VALUES.length;
+  const MONO = '"SFMono-Regular", "JetBrains Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace';
+
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const format = (value) => Math.round(value).toLocaleString("en-US");
+  const pad = (value) => String(value).padStart(2, "0");
+
+  function factorial(n) {
+    let result = 1;
+    for (let i = 2; i <= n; i += 1) result *= i;
+    return result;
+  }
+
+  function formatRaceTime(seconds) {
+    const safe = Math.max(0, seconds);
+    const minutes = Math.floor(safe / 60);
+    const secs = safe - minutes * 60;
+    return `${pad(minutes)}:${secs.toFixed(1).padStart(4, "0")}`;
+  }
+
+  function hexToRgb(hex) {
+    const value = parseInt(hex.slice(1), 16);
+    return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+  }
+
+  function rgba(color, alpha) {
+    return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function bumpElement(element) {
+    element.classList.remove("bump");
+    void element.offsetWidth;
+    element.classList.add("bump");
+  }
+
+  const ui = {
+    pauseBtn: document.getElementById("pauseBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+    againBtn: document.getElementById("againBtn"),
+    raceClock: document.getElementById("raceClock"),
+    raceState: document.getElementById("raceState"),
+    raceStateText: document.getElementById("raceStateText"),
+    race: document.getElementById("race"),
+    result: document.getElementById("result"),
+    resultCard: document.getElementById("resultCard"),
+    winnerName: document.getElementById("winnerName"),
+    resultSub: document.getElementById("resultSub"),
+    resultLeft: document.getElementById("resultLeft"),
+    resultRight: document.getElementById("resultRight"),
+    resultLeftTime: document.getElementById("resultLeftTime"),
+    resultLeftHits: document.getElementById("resultLeftHits"),
+    resultLeftN: document.getElementById("resultLeftN"),
+    resultLeftFinal: document.getElementById("resultLeftFinal"),
+    resultRightTime: document.getElementById("resultRightTime"),
+    resultRightHits: document.getElementById("resultRightHits"),
+    resultRightN: document.getElementById("resultRightN"),
+    resultRightFinal: document.getElementById("resultRightFinal")
+  };
+
+  let paused = false;
+  let raceTime = 0;
+  let clock = 0;
+  let lastTime = performance.now();
+  let winner = null;
+  let raceFinished = false;
+  let lastClockText = "";
+  let lastStateText = "";
+
+  class TeamSim {
+    constructor(side) {
+      this.side = side;
+      this.canvas = document.getElementById(`${side}Canvas`);
+      this.ctx = this.canvas.getContext("2d");
+      this.accent = side === "left"
+        ? { hex: "#67e8f9", rgb: hexToRgb("#67e8f9") }
+        : { hex: "#fbbf24", rgb: hexToRgb("#fbbf24") };
+
+      this.els = {
+        card: document.getElementById(side === "left" ? "teamLeft" : "teamRight"),
+        n: document.getElementById(`${side}N`),
+        value: document.getElementById(`${side}Value`),
+        equation: document.getElementById(`${side}Equation`),
+        hits: document.getElementById(`${side}Hits`),
+        remaining: document.getElementById(`${side}Remaining`),
+        level: document.getElementById(`${side}Level`),
+        finish: document.getElementById(side === "left" ? "leftFinish" : "rightFinish"),
+        finishText: document.getElementById(side === "left" ? "leftFinishText" : "rightFinishText")
+      };
+
+      this.platforms = INITIAL_VALUES.map((value, index) => ({
+        initial: value,
+        remaining: value,
+        y: 0,
+        color: LEVEL_COLORS[index],
+        rgb: hexToRgb(LEVEL_COLORS[index]),
+        flash: 0
+      }));
+
+      this.particles = [];
+      this.rings = [];
+      this.floaters = [];
+      this.trail = [];
+
+      this.W = 1;
+      this.H = 1;
+      this.dpr = 1;
+      this.centerX = 0;
+      this.initialW = 0;
+      this.rowGap = 0;
+      this.topPad = 0;
+      this.bottomPad = 0;
+      this.bounceHeight = 30;
+      this.platformH = 12;
+      this.ballR = 10;
+
+      this.hud = {};
+      this.reset();
+      this.layout();
+
+      this.resizeObserver = new ResizeObserver(() => this.layout());
+      this.resizeObserver.observe(this.canvas.parentElement);
+    }
+
+    reset() {
+      this.platforms.forEach((platform) => {
+        platform.remaining = platform.initial;
+        platform.flash = 0;
+      });
+
+      this.active = 0;
+      this.beatLeft = 1;
+      this.phase = "bouncing";
+      this.fall = null;
+      this.cleared = 0;
+      this.n = 1;
+      this.ballCount = 1;
+      this.mass = 1;
+      this.hits = 0;
+      this.finishTime = null;
+      this.complete = false;
+
+      this.particles.length = 0;
+      this.rings.length = 0;
+      this.floaters.length = 0;
+      this.trail.length = 0;
+
+      this.els.card.classList.remove("finished", "winner");
+      this.els.finish.classList.remove("show");
+      this.hud = {};
+      this.updateHud(true);
+    }
+
+    get power() {
+      return this.side === "left" ? this.ballCount : this.mass;
+    }
+
+    get teamName() {
+      return this.side === "left" ? "左队" : "右队";
+    }
+
+    layout() {
+      const rect = this.canvas.parentElement.getBoundingClientRect();
+      this.W = Math.max(1, rect.width);
+      this.H = Math.max(1, rect.height);
+      this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      this.canvas.width = Math.round(this.W * this.dpr);
+      this.canvas.height = Math.round(this.H * this.dpr);
+      this.canvas.style.width = this.W + "px";
+      this.canvas.style.height = this.H + "px";
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+      this.centerX = this.W * 0.5;
+      this.initialW = Math.min(this.W * (this.W < 480 ? 0.63 : 0.68), 560);
+
+      this.topPad = clamp(this.H * 0.18, 76, 104);
+      this.bottomPad = clamp(this.H * 0.12, 46, 68);
+      const usable = Math.max(130, this.H - this.topPad - this.bottomPad);
+      this.rowGap = usable / (N - 1);
+
+      this.platforms.forEach((platform, index) => {
+        platform.y = this.topPad + index * this.rowGap;
+      });
+
+      this.bounceHeight = clamp(this.rowGap * 0.55, 18, 72);
+      this.platformH = clamp(this.rowGap * 0.2, 10, 16);
+      this.ballR = clamp(this.rowGap * 0.18, 8.5, 13.5);
+    }
+
+    currentRemaining() {
+      return this.platforms.reduce((sum, platform) => sum + platform.remaining, 0);
+    }
+
+    clusterRadius(count = this.ballCount) {
+      if (count <= 1) return this.ballR;
+      return this.ballR * Math.min(4.35, 1.3 + 0.56 * Math.cbrt(count - 1));
+    }
+
+    clusterVerticalRadius(count = this.ballCount) {
+      if (count <= 1) return this.ballR;
+      const flatness = 0.56 - 0.16 * Math.min(1, Math.cbrt(count - 1) / 7);
+      return this.clusterRadius(count) * flatness;
+    }
+
+    heavyBallRadius() {
+      return this.ballR * Math.min(2.45, 1 + Math.log10(this.mass + 1) * 0.3);
+    }
+
+    ballHalfHeight() {
+      if (this.side === "left") {
+        if (this.ballCount <= 1) return this.ballR;
+        return this.clusterVerticalRadius() + this.ballR * 0.18;
+      }
+      return this.heavyBallRadius();
+    }
+
+    ballPosition() {
+      const halfHeight = this.ballHalfHeight();
+
+      if (this.phase === "falling" && this.fall) {
+        const from = this.platforms[this.fall.fromIndex];
+        const startY = from.y - halfHeight - 2;
+        const endY = this.fall.toIndex === null
+          ? this.H + 110
+          : this.platforms[this.fall.toIndex].y - halfHeight - 2;
+        const q = clamp(this.fall.t / this.fall.duration, 0, 1);
+        const eased = q * q;
+        const nearLanding = this.fall.toIndex !== null && q > 0.9;
+        return {
+          x: this.centerX,
+          y: startY + (endY - startY) * eased,
+          squash: nearLanding ? 1 - (q - 0.9) * 1.7 : 1
+        };
+      }
+
+      if (this.phase === "complete" || this.active >= N) {
+        return { x: this.centerX, y: this.H + 110, squash: 1 };
+      }
+
+      const platform = this.platforms[this.active];
+      const baseY = platform.y - halfHeight - 2;
+      const progress = clamp(1 - this.beatLeft, 0, 1);
+      const arc = 4 * progress * (1 - progress);
+      const edge = Math.min(progress, 1 - progress);
+      return {
+        x: this.centerX,
+        y: baseY - arc * this.bounceHeight,
+        squash: clamp(0.82 + edge / 0.22 * 0.18, 0.82, 1)
+      };
+    }
+
+    update(dt, time) {
+      if (this.phase === "bouncing") {
+        this.beatLeft -= dt;
+        if (this.beatLeft <= 0) {
+          this.beatLeft = 1;
+          this.applyHit();
+        }
+      } else if (this.phase === "falling" && this.fall) {
+        this.fall.t += dt;
+        if (this.fall.t >= this.fall.duration) {
+          if (this.fall.toIndex === null) {
+            this.finishCascade();
+          } else {
+            const landedIndex = this.fall.toIndex;
+            this.spawnLanding(this.platforms[landedIndex]);
+            this.active = landedIndex;
+            this.phase = "bouncing";
+            this.beatLeft = 1;
+            this.fall = null;
+          }
+        }
+      }
+
+      this.platforms.forEach((platform) => {
+        platform.flash = Math.max(0, platform.flash - dt * 4.8);
+      });
+
+      this.updateEffects(dt);
+
+      if (!paused && this.phase !== "complete") {
+        const position = this.ballPosition();
+        this.trail.push({ x: position.x, y: position.y, life: 0.34, max: 0.34 });
+        if (this.trail.length > 28) this.trail.shift();
+      }
+    }
+
+    applyHit() {
+      const platform = this.platforms[this.active];
+      if (!platform || platform.remaining <= 0) {
+        this.phase = "complete";
+        return;
+      }
+
+      platform.remaining = Math.max(0, platform.remaining - this.power);
+      platform.flash = 1;
+      this.hits += 1;
+      this.spawnImpact(platform, platform.y);
+
+      if (platform.remaining <= 0) {
+        this.collapsePlatform(this.active);
+      }
+    }
+
+    collapsePlatform(index) {
+      const platform = this.platforms[index];
+      this.spawnCollapse(platform);
+
+      this.cleared += 1;
+      this.n = this.cleared + 1;
+      if (this.side === "left") {
+        this.ballCount = Math.pow(this.n, 3);
+      } else {
+        this.mass = factorial(this.n);
+      }
+      this.spawnFactorBurst(platform);
+
+      this.active = index + 1;
+      this.phase = "falling";
+
+      if (this.active < N) {
+        this.fall = {
+          fromIndex: index,
+          toIndex: this.active,
+          t: 0,
+          duration: 0.48
+        };
+      } else {
+        this.fall = {
+          fromIndex: index,
+          toIndex: null,
+          t: 0,
+          duration: 0.92
+        };
+      }
+    }
+
+    finishCascade() {
+      this.phase = "complete";
+      this.complete = true;
+      this.fall = null;
+      this.finishTime = raceTime;
+      onTeamFinish(this);
+    }
+
+    updateHud(force = false) {
+      const nText = format(this.n);
+      const value = this.side === "left" ? this.ballCount : this.mass;
+      const valueText = format(value);
+      const equationText = this.side === "left"
+        ? `${this.n}³ = ${valueText}`
+        : `${this.n}! = ${valueText}`;
+      const hitsText = format(this.hits);
+      const remainingText = format(this.currentRemaining());
+      const levelText = this.phase === "complete" ? "—" : pad(Math.min(this.active + 1, N));
+
+      if (force || this.hud.n !== nText) {
+        this.els.n.textContent = nText;
+        if (!force) bumpElement(this.els.n);
+        this.hud.n = nText;
+      }
+      if (force || this.hud.value !== valueText) {
+        this.els.value.textContent = valueText;
+        if (!force) bumpElement(this.els.value);
+        this.hud.value = valueText;
+      }
+      if (force || this.hud.equation !== equationText) {
+        this.els.equation.textContent = equationText;
+        this.hud.equation = equationText;
+      }
+      if (force || this.hud.hits !== hitsText) {
+        this.els.hits.textContent = hitsText;
+        this.hud.hits = hitsText;
+      }
+      if (force || this.hud.remaining !== remainingText) {
+        this.els.remaining.textContent = remainingText;
+        this.hud.remaining = remainingText;
+      }
+      if (force || this.hud.level !== levelText) {
+        this.els.level.textContent = levelText;
+        this.hud.level = levelText;
+      }
+    }
+
+    /* ---------------- Effects ---------------- */
+
+    spawnImpact(platform, y) {
+      if (this.particles.length > 360) return;
+
+      const weight = Math.log10(this.power + 1) + Math.cbrt(this.ballCount);
+      this.rings.push({
+        x: this.centerX,
+        y,
+        maxRadius: Math.max(28, this.platformH * 2.5 + weight * 6),
+        life: 0.42,
+        maxLife: 0.42,
+        color: platform.color,
+        lineWidth: 1.2
+      });
+
+      const count = 4 + Math.min(9, Math.round(weight * 1.25));
+      for (let i = 0; i < count; i += 1) {
+        this.particles.push({
+          x: this.centerX + (Math.random() - 0.5) * this.ballHalfHeight() * 2.2,
+          y: y + (Math.random() - 0.5) * 4,
+          vx: (Math.random() - 0.5) * (95 + weight * 18),
+          vy: -30 - Math.random() * (105 + weight * 9),
+          gravity: 420,
+          life: 0.3 + Math.random() * 0.34,
+          maxLife: 0.64,
+          size: 0.8 + Math.random() * (1.8 + weight * 0.12),
+          color: platform.color,
+          shape: "dot",
+          rotation: 0,
+          spin: 0
+        });
+      }
+    }
+
+    spawnLanding(platform) {
+      this.rings.push({
+        x: this.centerX,
+        y: platform.y - 2,
+        maxRadius: Math.max(44, this.platformH * 4 + Math.cbrt(this.power) * 6),
+        life: 0.55,
+        maxLife: 0.55,
+        color: platform.color,
+        lineWidth: 1.5
+      });
+    }
+
+    spawnFactorBurst(platform) {
+      const radius = this.ballHalfHeight();
+      this.rings.push({
+        x: this.centerX,
+        y: platform.y - radius * 0.55,
+        maxRadius: radius * 2.4 + 52,
+        life: 0.72,
+        maxLife: 0.72,
+        color: this.accent.hex,
+        lineWidth: 1.8
+      });
+
+      for (let i = 0; i < 22; i += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const burstSpeed = 70 + Math.random() * 190;
+        this.particles.push({
+          x: this.centerX,
+          y: platform.y - 4,
+          vx: Math.cos(angle) * burstSpeed,
+          vy: Math.sin(angle) * burstSpeed * 0.55 - 40,
+          gravity: 260,
+          life: 0.55 + Math.random() * 0.55,
+          maxLife: 1.1,
+          size: 1.1 + Math.random() * 2.3,
+          color: i % 3 === 0 ? "#ffffff" : this.accent.hex,
+          shape: "dot",
+          rotation: 0,
+          spin: 0
+        });
+      }
+
+      const label = this.side === "left" ? `×${format(this.ballCount)}` : `${this.n}!`;
+      this.floaters.push({
+        x: this.centerX,
+        y: platform.y - radius - 30,
+        text: label,
+        life: 1.15,
+        maxLife: 1.15,
+        color: this.accent.hex
+      });
+    }
+
+    spawnCollapse(platform) {
+      const spread = Math.max(28, Math.min(this.initialW * 0.1, 90));
+
+      for (let ringIndex = 0; ringIndex < 2; ringIndex += 1) {
+        this.rings.push({
+          x: this.centerX,
+          y: platform.y,
+          maxRadius: Math.max(78, this.initialW * (0.2 + ringIndex * 0.1)),
+          life: 0.65 + ringIndex * 0.17,
+          maxLife: 0.65 + ringIndex * 0.17,
+          color: platform.color,
+          lineWidth: 2 - ringIndex * 0.65
+        });
+      }
+
+      for (let i = 0; i < 36; i += 1) {
+        const direction = Math.random() * 2 - 0.5;
+        this.particles.push({
+          x: this.centerX + (Math.random() - 0.5) * spread * 2,
+          y: platform.y + (Math.random() - 0.5) * this.platformH,
+          vx: direction * (100 + Math.random() * 230),
+          vy: -35 - Math.random() * 280,
+          gravity: 660,
+          life: 0.65 + Math.random() * 0.8,
+          maxLife: 1.45,
+          size: 1.1 + Math.random() * 3.5,
+          color: platform.color,
+          shape: Math.random() > 0.38 ? "rect" : "dot",
+          rotation: Math.random() * Math.PI,
+          spin: (Math.random() - 0.5) * 9
+        });
+      }
+    }
+
+    updateEffects(dt) {
+      for (let i = this.particles.length - 1; i >= 0; i -= 1) {
+        const particle = this.particles[i];
+        particle.life -= dt;
+        if (particle.life <= 0) {
+          this.particles.splice(i, 1);
+          continue;
+        }
+        particle.vy += particle.gravity * dt;
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.rotation += particle.spin * dt;
+      }
+
+      for (let i = this.rings.length - 1; i >= 0; i -= 1) {
+        this.rings[i].life -= dt;
+        if (this.rings[i].life <= 0) this.rings.splice(i, 1);
+      }
+
+      for (let i = this.floaters.length - 1; i >= 0; i -= 1) {
+        this.floaters[i].life -= dt;
+        this.floaters[i].y -= 23 * dt;
+        if (this.floaters[i].life <= 0) this.floaters.splice(i, 1);
+      }
+
+      for (let i = this.trail.length - 1; i >= 0; i -= 1) {
+        this.trail[i].life -= dt;
+        if (this.trail[i].life <= 0) this.trail.splice(i, 1);
+      }
+    }
+
+    /* ---------------- Rendering ---------------- */
+
+    drawBackground(time) {
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.W, this.H);
+
+      const base = ctx.createLinearGradient(0, 0, 0, this.H);
+      base.addColorStop(0, "#080c15");
+      base.addColorStop(0.48, "#060910");
+      base.addColorStop(1, "#05070c");
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, this.W, this.H);
+
+      const topGlow = ctx.createRadialGradient(
+        this.W * 0.5, this.H * 0.14, 0,
+        this.W * 0.5, this.H * 0.14, this.W * 0.72
+      );
+      topGlow.addColorStop(0, rgba(this.accent.rgb, 0.1));
+      topGlow.addColorStop(0.55, rgba(this.accent.rgb, 0.028));
+      topGlow.addColorStop(1, rgba(this.accent.rgb, 0));
+      ctx.fillStyle = topGlow;
+      ctx.fillRect(0, 0, this.W, this.H);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(167, 186, 209, .065)";
+      const gridStep = this.W < 460 ? 34 : 44;
+      for (let x = 18; x < this.W - 8; x += gridStep) {
+        for (let y = 20; y < this.H - 8; y += gridStep) {
+          ctx.fillRect(x, y, 0.9, 0.9);
+        }
+      }
+      ctx.restore();
+
+      const guideTop = Math.max(36, this.topPad - 46);
+      const guideBottom = Math.min(this.H - 26, this.platforms[N - 1].y + 38);
+      const guide = ctx.createLinearGradient(0, guideTop, 0, guideBottom);
+      guide.addColorStop(0, rgba(this.accent.rgb, 0));
+      guide.addColorStop(0.2, rgba(this.accent.rgb, 0.12));
+      guide.addColorStop(1, rgba(this.accent.rgb, 0.035));
+      ctx.save();
+      ctx.strokeStyle = guide;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([1.5, 7]);
+      ctx.beginPath();
+      ctx.moveTo(this.centerX, guideTop);
+      ctx.lineTo(this.centerX, guideBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const sweep = Math.sin(time * 0.00022) * 0.5 + 0.5;
+      const sweepY = guideTop + (guideBottom - guideTop) * sweep;
+      const sweepGlow = ctx.createLinearGradient(0, sweepY - 55, 0, sweepY + 55);
+      sweepGlow.addColorStop(0, rgba(this.accent.rgb, 0));
+      sweepGlow.addColorStop(0.5, rgba(this.accent.rgb, 0.016));
+      sweepGlow.addColorStop(1, rgba(this.accent.rgb, 0));
+      ctx.fillStyle = sweepGlow;
+      ctx.fillRect(this.centerX - 65, sweepY - 55, 130, 110);
+      ctx.restore();
+    }
+
+    drawRail(platform, activeNow) {
+      const ctx = this.ctx;
+      const leftX = this.centerX - this.initialW / 2;
+      const rightX = this.centerX + this.initialW / 2;
+
+      ctx.save();
+      ctx.strokeStyle = platform.remaining > 0
+        ? (activeNow ? "rgba(255,255,255,.14)" : "rgba(255,255,255,.06)")
+        : "rgba(255,255,255,.022)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 7]);
+      ctx.beginPath();
+      ctx.moveTo(leftX, platform.y);
+      ctx.lineTo(rightX, platform.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (platform.remaining > 0) {
+        ctx.strokeStyle = activeNow ? rgba(platform.rgb, 0.46) : "rgba(255,255,255,.11)";
+        ctx.beginPath();
+        ctx.moveTo(leftX, platform.y - 4);
+        ctx.lineTo(leftX, platform.y + 4);
+        ctx.moveTo(rightX, platform.y - 4);
+        ctx.lineTo(rightX, platform.y + 4);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    drawPlatform(platform, activeNow, time) {
+      if (platform.remaining <= 0) return;
+
+      const ctx = this.ctx;
+      const ratio = platform.remaining / platform.initial;
+      const barWidth = Math.max(1.5, this.initialW * ratio);
+      const h = this.platformH;
+      const x = this.centerX - barWidth / 2;
+      const y = platform.y - h / 2;
+      const radius = h / 2;
+
+      ctx.save();
+      if (activeNow) {
+        const pulse = 0.6 + Math.sin(time * 0.0042) * 0.12;
+        ctx.shadowColor = rgba(platform.rgb, pulse);
+        ctx.shadowBlur = 19;
+      }
+
+      roundRect(ctx, x - 1, y - 1, barWidth + 2, h + 2, radius + 1);
+      ctx.fillStyle = "rgba(1, 4, 8, .82)";
+      ctx.fill();
+
+      const fill = ctx.createLinearGradient(0, y, 0, y + h);
+      fill.addColorStop(0, rgba(platform.rgb, 0.98));
+      fill.addColorStop(0.34, rgba(platform.rgb, 0.72));
+      fill.addColorStop(1, rgba(platform.rgb, 0.3));
+      roundRect(ctx, x, y, barWidth, h, radius);
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      roundRect(ctx, x, y, barWidth, h, radius);
+      ctx.strokeStyle = rgba(platform.rgb, 0.58);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      if (barWidth > 9) {
+        const shine = ctx.createLinearGradient(x, y, x, y + h);
+        shine.addColorStop(0, "rgba(255,255,255,.62)");
+        shine.addColorStop(0.3, "rgba(255,255,255,.08)");
+        shine.addColorStop(1, "rgba(255,255,255,0)");
+        roundRect(ctx, x + 1, y + 1, barWidth - 2, h - 2, Math.max(1, radius - 1));
+        ctx.fillStyle = shine;
+        ctx.fill();
+      }
+
+      if (barWidth > 11) {
+        ctx.fillStyle = "rgba(255,255,255,.7)";
+        ctx.beginPath();
+        ctx.arc(x + radius, platform.y, 1.25, 0, Math.PI * 2);
+        ctx.arc(x + barWidth - radius, platform.y, 1.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (platform.flash > 0.01) {
+        const glow = ctx.createLinearGradient(x, 0, x + barWidth, 0);
+        glow.addColorStop(0, rgba(platform.rgb, 0));
+        glow.addColorStop(0.5, rgba(platform.rgb, platform.flash * 0.3));
+        glow.addColorStop(1, rgba(platform.rgb, 0));
+        ctx.fillStyle = glow;
+        ctx.fillRect(x - 12, platform.y - h * 0.9, barWidth + 24, h * 1.8);
+      }
+
+      ctx.restore();
+    }
+
+    drawLabels() {
+      const ctx = this.ctx;
+      const leftX = this.centerX - this.initialW / 2;
+      const rightX = this.centerX + this.initialW / 2;
+      const offset = this.W < 480 ? 10 : 16;
+      const bigSize = clamp(this.W * 0.024, 11, 18);
+      const smallSize = clamp(this.W * 0.012, 7.5, 10);
+
+      ctx.save();
+      ctx.textBaseline = "middle";
+
+      this.platforms.forEach((platform, index) => {
+        const cleared = platform.remaining <= 0;
+        const current = index === this.active && this.phase !== "complete" && this.active < N;
+
+        ctx.textAlign = "right";
+        ctx.font = `500 ${smallSize}px ${MONO}`;
+        ctx.fillStyle = current ? rgba(platform.rgb, 0.9) : "rgba(132, 148, 169, .5)";
+        ctx.fillText(`${current ? "● " : ""}LAYER ${pad(index + 1)}`, leftX - offset, platform.y - 9);
+
+        ctx.font = `600 ${bigSize}px ${MONO}`;
+        ctx.fillStyle = current ? "#f3fcff" : cleared ? "rgba(167, 181, 199, .27)" : "rgba(216, 228, 242, .76)";
+        ctx.fillText(format(platform.initial), leftX - offset, platform.y + 4);
+
+        ctx.textAlign = "left";
+        ctx.font = `500 ${smallSize}px ${MONO}`;
+        ctx.fillStyle = cleared ? "rgba(132, 148, 169, .32)" : "rgba(132, 148, 169, .54)";
+        ctx.fillText(cleared ? "CLEARED" : "REMAIN", rightX + offset, platform.y - 9);
+
+        ctx.font = `600 ${bigSize}px ${MONO}`;
+        ctx.fillStyle = cleared
+          ? rgba(platform.rgb, 0.3)
+          : current
+            ? rgba(platform.rgb, 1)
+            : rgba(platform.rgb, 0.76);
+        ctx.fillText(cleared ? "000" : format(platform.remaining), rightX + offset, platform.y + 4);
+      });
+
+      ctx.restore();
+    }
+
+    drawRings() {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      this.rings.forEach((ring) => {
+        const progress = 1 - ring.life / ring.maxLife;
+        const radius = Math.max(1, ring.maxRadius * easeOutCubic(progress));
+        const alpha = (1 - progress) * 0.58;
+        ctx.strokeStyle = ring.color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = ring.lineWidth * (1 - progress * 0.55);
+        ctx.beginPath();
+        ctx.ellipse(ring.x, ring.y, radius, radius * 0.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    drawParticles() {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      this.particles.forEach((particle) => {
+        const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+        ctx.globalAlpha = alpha * 0.82;
+        ctx.fillStyle = particle.color;
+        if (particle.shape === "rect") {
+          ctx.save();
+          ctx.translate(particle.x, particle.y);
+          ctx.rotate(particle.rotation);
+          ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size * 0.62);
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+      ctx.restore();
+    }
+
+    drawFloaters() {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      this.floaters.forEach((floater) => {
+        const progress = 1 - floater.life / floater.maxLife;
+        const alpha = clamp(floater.life / floater.maxLife * 1.6, 0, 1);
+        ctx.globalAlpha = alpha;
+        ctx.font = `600 ${Math.max(10, this.ballR * 0.92)}px ${MONO}`;
+        ctx.fillStyle = floater.color;
+        ctx.shadowColor = rgba(this.accent.rgb, 0.8);
+        ctx.shadowBlur = 16 * (1 - progress * 0.4);
+        ctx.fillText(floater.text, floater.x, floater.y);
+      });
+      ctx.restore();
+    }
+
+    drawBadge(position, text) {
+      const ctx = this.ctx;
+      const fontSize = clamp(this.ballR * 0.76, 8.5, 11.5);
+      ctx.save();
+      ctx.font = `600 ${fontSize}px ${MONO}`;
+      const textWidth = ctx.measureText(text).width;
+      const badgeWidth = textWidth + 13;
+      const badgeHeight = fontSize + 7.5;
+      const badgeX = position.x - badgeWidth / 2;
+      const badgeY = position.y - this.ballHalfHeight() - badgeHeight - 9;
+
+      roundRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, badgeHeight / 2);
+      ctx.fillStyle = "rgba(4, 12, 18, .74)";
+      ctx.fill();
+      ctx.strokeStyle = rgba(this.accent.rgb, 0.32);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.fillStyle = this.side === "left" ? "#d9fbff" : "#fff5d6";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, position.x, badgeY + badgeHeight / 2 + 0.5);
+      ctx.restore();
+    }
+
+    drawBall(time) {
+      const position = this.ballPosition();
+      const isLeft = this.side === "left";
+      const halfHeight = this.ballHalfHeight();
+      const cluster = isLeft ? this.clusterRadius() : this.heavyBallRadius();
+      if (position.y > this.H + cluster + 90) return;
+
+      const ctx = this.ctx;
+      const massTier = clamp(Math.log10(this.mass + 1) / 4.7, 0, 1);
+      const trailRadius = isLeft
+        ? Math.max(this.ballR * 0.7, cluster * 0.42)
+        : Math.max(this.ballR * 0.8, cluster * (0.95 + massTier * 0.45));
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      this.trail.forEach((point) => {
+        const alpha = clamp(point.life / point.max, 0, 1);
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.fillStyle = isLeft ? "#67e8f9" : "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, trailRadius * (0.22 + alpha * 0.78), 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+
+      const squash = position.squash;
+      ctx.save();
+      ctx.translate(position.x, position.y + halfHeight * (1 - squash));
+      ctx.scale(1 + (1 - squash) * 0.65, squash);
+
+      const glowRadius = isLeft
+        ? cluster * (this.ballCount > 1 ? 2.1 : 3.2)
+        : cluster * (2.8 + massTier * 2.2);
+      const glow = ctx.createRadialGradient(0, 0, this.ballR * 0.2, 0, 0, glowRadius);
+      glow.addColorStop(0, rgba(this.accent.rgb, isLeft ? 0.34 : 0.3 + massTier * 0.08));
+      glow.addColorStop(0.38, rgba(this.accent.rgb, isLeft ? 0.1 : 0.1 + massTier * 0.04));
+      glow.addColorStop(1, rgba(this.accent.rgb, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      if (isLeft && this.ballCount > 1) {
+        const verticalGlow = Math.max(glowRadius * 0.34, this.clusterVerticalRadius() * 1.9);
+        ctx.ellipse(0, 0, glowRadius, verticalGlow, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      if (isLeft && this.ballCount > 1) {
+        this.drawSwarm(time);
+      } else if (isLeft) {
+        this.drawSmallBall(ctx);
+      } else {
+        this.drawHeavyBall(ctx, time);
+      }
+
+      ctx.restore();
+
+      if (isLeft) {
+        this.drawBadge(position, `×${format(this.ballCount)}`);
+      } else {
+        this.drawBadge(position, `${this.n}! = ${format(this.mass)}`);
+      }
+    }
+
+    drawSmallBall(ctx) {
+      ctx.shadowColor = "rgba(125, 226, 255, .95)";
+      ctx.shadowBlur = 22;
+
+      const ballFill = ctx.createRadialGradient(-this.ballR * 0.38, -this.ballR * 0.44, 1, 0, 0, this.ballR);
+      ballFill.addColorStop(0, "#ffffff");
+      ballFill.addColorStop(0.28, "#ecfdff");
+      ballFill.addColorStop(0.66, "#9cefff");
+      ballFill.addColorStop(0.9, "#46cde8");
+      ballFill.addColorStop(1, "#0e8dab");
+      ctx.fillStyle = ballFill;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.ballR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255, 255, 255, .78)";
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.ballR - 0.45, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    drawSwarm(time) {
+      const ctx = this.ctx;
+      const cluster = this.clusterRadius();
+      const vertical = this.clusterVerticalRadius();
+      const orbitalAngle = time * 0.00016;
+      const orbRadius = clamp(this.ballR * 0.3 * Math.pow(12 / this.ballCount, 0.16), 1.15, 4.2);
+
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = "rgba(103, 232, 249, .14)";
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, cluster, vertical, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(150, 245, 255, 1)";
+      for (let i = 0; i < this.ballCount; i += 1) {
+        const spread = Math.sqrt((i + 0.5) / this.ballCount);
+        const angle = i * 2.399963 + orbitalAngle;
+        const orbitX = Math.cos(angle) * cluster * spread;
+        const orbitY = Math.sin(angle) * vertical * spread;
+        const shimmer = 0.5 + 0.5 * Math.sin(time * 0.0048 + i * 1.71);
+        ctx.globalAlpha = 0.32 + shimmer * 0.5;
+        ctx.beginPath();
+        ctx.arc(orbitX, orbitY, orbRadius * (0.7 + shimmer * 0.55), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    drawHeavyBall(ctx, time) {
+      const radius = this.heavyBallRadius();
+      const massTier = clamp(Math.log10(this.mass + 1) / 4.7, 0, 1);
+      const pulse = 0.5 + 0.5 * Math.sin(time * 0.0025);
+
+      const outerHalo = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, radius * (2.2 + massTier * 2.6));
+      outerHalo.addColorStop(0, rgba(this.accent.rgb, 0.13 + massTier * 0.13));
+      outerHalo.addColorStop(0.55, rgba(this.accent.rgb, 0.04 + massTier * 0.055));
+      outerHalo.addColorStop(1, rgba(this.accent.rgb, 0));
+      ctx.fillStyle = outerHalo;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * (2.2 + massTier * 2.6), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 3; i += 1) {
+        const ringRadius = radius + 6 + i * (6 + massTier * 5) + massTier * 13;
+        ctx.strokeStyle = rgba(this.accent.rgb, 0.07 + massTier * 0.14);
+        ctx.lineWidth = 0.75 + i * 0.25;
+        ctx.setLineDash([1.5, 5]);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ringRadius, ringRadius * 0.88, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      ctx.shadowColor = rgba(this.accent.rgb, 0.86);
+      ctx.shadowBlur = 26 + massTier * 34;
+
+      const ballFill = ctx.createRadialGradient(-radius * 0.38, -radius * 0.46, 1, 0, 0, radius);
+      ballFill.addColorStop(0, "#ffffff");
+      ballFill.addColorStop(0.2, "#fff7dc");
+      ballFill.addColorStop(0.56, "#fcd34d");
+      ballFill.addColorStop(0.84, "#f59e0b");
+      ballFill.addColorStop(1, "#b45309");
+      ctx.fillStyle = ballFill;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255, 253, 235, .8)";
+      ctx.lineWidth = 0.95;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius - 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = rgba(this.accent.rgb, 0.25 + massTier * 0.3);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.68 + pulse * 0.6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255, 248, 214, .82)";
+      ctx.beginPath();
+      ctx.arc(-radius * 0.32, -radius * 0.4, Math.max(0.7, radius * 0.1), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    render(time) {
+      this.drawBackground(time);
+      this.platforms.forEach((platform, index) => {
+        this.drawRail(platform, index === this.active && this.phase !== "complete");
+      });
+      this.platforms.forEach((platform, index) => {
+        this.drawPlatform(platform, index === this.active && this.phase !== "complete", time);
+      });
+      this.drawRings();
+      this.drawParticles();
+      this.drawBall(time);
+      this.drawFloaters();
+      this.drawLabels();
+      this.updateHud();
+    }
+  }
+
+  const left = new TeamSim("left");
+  const right = new TeamSim("right");
+
+  function onTeamFinish(team) {
+    if (!winner) {
+      winner = team.side;
+      team.els.card.classList.add("winner");
+      team.els.finishText.textContent = `WINNER · ${formatRaceTime(team.finishTime)}`;
+    } else {
+      team.els.finishText.textContent = `FINISHED · ${formatRaceTime(team.finishTime)}`;
+    }
+    team.els.card.classList.add("finished");
+    team.els.finish.classList.add("show");
+    updateRaceState();
+
+    if (left.complete && right.complete) {
+      finishRace();
+    }
+  }
+
+  function finishRace() {
+    if (raceFinished) return;
+    raceFinished = true;
+    paused = false;
+    ui.pauseBtn.classList.remove("is-paused");
+    ui.pauseBtn.setAttribute("aria-label", "已完成");
+    document.body.classList.remove("is-paused");
+
+    const leftWon = winner === "left";
+    const winnerTeam = leftWon ? left : right;
+    const loserTeam = leftWon ? right : left;
+
+    ui.resultCard.classList.toggle("winner-left", leftWon);
+    ui.resultCard.classList.toggle("winner-right", !leftWon);
+    ui.winnerName.textContent = winnerTeam.teamName;
+    ui.resultSub.textContent = `${winnerTeam.teamName}率先击穿全部七层平台，领先 ${(loserTeam.finishTime - winnerTeam.finishTime).toFixed(1)} 秒`;
+
+    ui.resultLeftTime.textContent = formatRaceTime(left.finishTime);
+    ui.resultLeftHits.textContent = format(left.hits);
+    ui.resultLeftN.textContent = format(left.n);
+    ui.resultLeftFinal.textContent = format(left.ballCount);
+    ui.resultRightTime.textContent = formatRaceTime(right.finishTime);
+    ui.resultRightHits.textContent = format(right.hits);
+    ui.resultRightN.textContent = format(right.n);
+    ui.resultRightFinal.textContent = format(right.mass);
+
+    ui.resultLeft.classList.toggle("is-winner", leftWon);
+    ui.resultRight.classList.toggle("is-winner", !leftWon);
+
+    ui.result.classList.add("show");
+    ui.result.setAttribute("aria-hidden", "false");
+    document.body.classList.add("result-open");
+    updateRaceState();
+  }
+
+  function updateRaceState() {
+    let text = "LIVE";
+    let stateClass = "";
+    if (raceFinished) {
+      text = "FINISHED";
+      stateClass = "is-finished";
+    } else if (paused) {
+      text = "PAUSED";
+      stateClass = "is-paused";
+    } else if (winner) {
+      text = winner === "left" ? "左队冲线" : "右队冲线";
+    }
+
+    if (lastStateText !== text + stateClass) {
+      ui.raceStateText.textContent = text;
+      ui.raceState.className = "race-state" + (stateClass ? " " + stateClass : "");
+      lastStateText = text + stateClass;
+    }
+  }
+
+  function updateRaceClock() {
+    const text = formatRaceTime(raceTime);
+    if (lastClockText !== text) {
+      ui.raceClock.textContent = text;
+      lastClockText = text;
+    }
+  }
+
+  function setPaused(value) {
+    if (raceFinished) return;
+    paused = value;
+    ui.pauseBtn.classList.toggle("is-paused", paused);
+    ui.pauseBtn.setAttribute("aria-label", paused ? "继续" : "暂停");
+    document.body.classList.toggle("is-paused", paused);
+    updateRaceState();
+  }
+
+  function resetRace() {
+    paused = false;
+    raceTime = 0;
+    clock = 0;
+    winner = null;
+    raceFinished = false;
+    lastClockText = "";
+    lastStateText = "";
+
+    left.reset();
+    right.reset();
+
+    ui.pauseBtn.classList.remove("is-paused");
+    ui.pauseBtn.setAttribute("aria-label", "暂停");
+    document.body.classList.remove("is-paused");
+
+    ui.result.classList.remove("show");
+    ui.result.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("result-open");
+    ui.resultCard.classList.remove("winner-left", "winner-right");
+    ui.resultLeft.classList.remove("is-winner");
+    ui.resultRight.classList.remove("is-winner");
+
+    updateRaceState();
+    updateRaceClock();
+  }
+
+  function animate(time) {
+    const dt = Math.min((time - lastTime) / 1000, 0.05);
+    lastTime = time;
+
+    if (!paused && !raceFinished) {
+      raceTime += dt;
+      clock += dt * 1000;
+      left.update(dt, clock);
+      right.update(dt, clock);
+    }
+
+    left.render(clock);
+    right.render(clock);
+    updateRaceClock();
+    requestAnimationFrame(animate);
+  }
+
+  ui.pauseBtn.addEventListener("click", () => {
+    setPaused(!paused);
+    ui.pauseBtn.blur();
+  });
+
+  ui.resetBtn.addEventListener("click", () => {
+    resetRace();
+    ui.resetBtn.blur();
+  });
+
+  ui.againBtn.addEventListener("click", resetRace);
+
+  window.addEventListener("keydown", (event) => {
+    if (event.repeat) return;
+    if (event.code === "Space") {
+      event.preventDefault();
+      setPaused(!paused);
+      return;
+    }
+    if (event.key.toLowerCase() === "r") {
+      resetRace();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    left.layout();
+    right.layout();
+  });
+
+  resetRace();
+  requestAnimationFrame((time) => {
+    lastTime = time;
+    requestAnimationFrame(animate);
+  });
+})();
+</script>
+</body>
+</html>
